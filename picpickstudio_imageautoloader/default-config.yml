@@ -1,0 +1,7 @@
+filename_regex: .*\.jpg
+filename_regex_case_sensitive: false
+polling_frequency_ms: 1000
+use_polling: true
+watch_dirpath: ./
+window_title_regex: Remote Live View window
+window_title_regex_case_sensitive: false

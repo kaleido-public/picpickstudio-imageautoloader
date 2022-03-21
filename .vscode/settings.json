@@ -1,0 +1,13 @@
+{
+  "workbench.colorCustomizations": {
+    "activityBar.background": "#392837",
+    "titleBar.activeBackground": "#4F384C",
+    "titleBar.activeForeground": "#FBFAFB"
+  },
+  "files.exclude": {
+    ".mypy_cache": true,
+    ".venv": true
+  },
+  "python.formatting.provider": "black",
+  "editor.formatOnSave": true
+}
