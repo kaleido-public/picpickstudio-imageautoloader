@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "ms-python.vscode-pylance",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools-extension-pack"
+    ]
+}

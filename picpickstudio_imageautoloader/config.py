@@ -12,6 +12,7 @@ class AppConfig:
     filename_regex: str
     filename_regex_case_sensitive: bool
     watch_dirpath: str
+    window_watcher_tolerance: float
 
     @staticmethod
     def default_config() -> "AppConfig":
@@ -23,6 +24,7 @@ class AppConfig:
             filename_regex=".*\.jpg",
             filename_regex_case_sensitive=False,
             watch_dirpath="./",
+            window_watcher_tolerance=0.05,
         )
 
     @staticmethod

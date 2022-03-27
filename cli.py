@@ -1,19 +1,25 @@
 #!/usr/bin/env python3.10
 
+from email.policy import default
+from lib2to3.pytree import Base
+from turtle import position
 import click
 from pathlib import Path
 import re
 import marshmallow.exceptions
 import yaml
 import multiprocessing
+import asyncio
+import PIL.Image
+from picpickstudio_imageautoloader.config import AppConfig
+from picpickstudio_imageautoloader.image_previewer import ImagePreviewer
+from picpickstudio_imageautoloader.window_watcher import WindowWatcher
+from picpickstudio_imageautoloader.dir_watcher import DirWatcher
+import PySimpleGUI as sg
+import io
 
-from picpickstudio_imageautoloader.src.config import AppConfig
-from picpickstudio_imageautoloader.src.window_watcher import WindowWatcher
-from picpickstudio_imageautoloader.src.dir_watcher import DirWatcher
 
-
-current_img_lock = multiprocessing.Lock()
-current_img: str | None = None
+window_title = "PICPICK PREVIEW"
 
 
 @click.command()
@@ -30,20 +36,33 @@ def main(
     config_obj = get_config(config)
 
     window_watcher = WindowWatcher(
-        title_regex=re.compile(config_obj.window_title_regex),
+        title_regex=re.compile(config_obj.window_title_regex, re.IGNORECASE),
         on_change=on_window_change,
+        window_watcher_tolerance=config_obj.window_watcher_tolerance,
     )
     dir_watcher = DirWatcher(
         use_polling=config_obj.use_polling,
         on_new_file=on_new_file,
-        filename_regex=re.compile(config_obj.filename_regex),
+        filename_regex=re.compile(config_obj.filename_regex, re.IGNORECASE),
         path=Path(config_obj.watch_dirpath),
     )
+    image_previewer = ImagePreviewer()
 
-    current_img = None
+    async def main_loop():
+        await asyncio.gather(
+            window_watcher.start(),
+            image_previewer.start(),
+        )
 
-    window_watcher.start()
-    dir_watcher.start()
+    try:
+        dir_watcher.start()
+        asyncio.run(main_loop())
+    except KeyboardInterrupt:
+        dir_watcher.stop()
+        image_previewer.stop()
+        exit("Interrupted")
+
+    print("exit normally")
 
 
 def print_default_config():
@@ -67,17 +86,15 @@ def get_config(config_path: Path | None) -> AppConfig:
 
 
 def on_new_file(file: Path) -> None:
-    print(file)
-    with current_img_lock:
-        global current_img
-        current_img = file.name
+    # with lock:
+    print(f"New file: {file}")
+    ImagePreviewer.state.set_next_file(file)
 
 
 def on_window_change() -> None:
+    # with lock:
     print("Window changed")
-    with current_img_lock:
-        global current_img
-        current_img = None
+    ImagePreviewer.state.set_next_file(None)
 
 
 main()

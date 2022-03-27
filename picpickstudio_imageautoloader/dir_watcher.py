@@ -3,7 +3,6 @@ from pathlib import Path
 import re
 import watchdog.observers
 import watchdog.events
-import time
 
 
 class DirWatcher:
@@ -25,17 +24,24 @@ class DirWatcher:
             self.watcher = dirobserver
 
         def on_created(self, event: watchdog.events.FileCreatedEvent) -> None:
-            if self.watcher.filename_regex.match(Path(event.src_path).name):
-                self.watcher.on_new_file(event.src_path)
+            if self.watcher.filename_regex.match(
+                Path(event.src_path).name, re.IGNORECASE
+            ):
+                try:
+                    self.watcher.on_new_file(Path(event.src_path))
+                except Exception as e:
+                    print(e)
 
     def start(self) -> None:
         self.observer = watchdog.observers.Observer()
         self.observer.schedule(
             self.__FileSystemEventHandler(dirobserver=self),
             path=self.path,
-            recursive=False,
+            recursive=True,
         )
-        print(f"Watching {self.path.absolute()}")
+        print(f"Watching {self.path.absolute()} for {self.filename_regex.pattern}")
         self.observer.start()
-        while True:
-            time.sleep(1)
+
+    def stop(self) -> None:
+        self.observer.stop()
+        print("Dir watcher stopped")
