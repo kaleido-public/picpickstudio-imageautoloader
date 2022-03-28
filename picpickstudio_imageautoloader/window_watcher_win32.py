@@ -9,6 +9,7 @@ from PIL.Image import Image
 import PIL.ImageChops
 import re
 import asyncio
+import traceback
 
 if TYPE_CHECKING:
     from .window_watcher import WindowWatcher
@@ -23,45 +24,49 @@ class Size:
 
 
 class WindowWatcherWin32:
-    hwnd: HWND | None
     last_capture: Image | None
     parent: "WindowWatcher"
 
     def __init__(self, parent: "WindowWatcher") -> None:
         self.parent = parent
-        self.hwnd = None
         self.last_capture = None
+        self.should_stop = False
 
     async def start(self) -> None:
-        await asyncio.gather(
-            self.update_hwnd_loop(),
-            self.capture_window_loop(),
-        )
-        print("Window watcher exits")
+        await self.capture_window_loop()
 
-    async def update_hwnd_loop(self) -> None:
-        while True:
-            window = find_window(self.parent.title_regex)
-            if window:
-                self.hwnd, title = window
-                print(f'Window: {self.hwnd} "{title}"')
-            else:
-                print(f"Looking for window: {self.parent.title_regex}")
-                self.hwnd = None
-            await asyncio.sleep(5)
+    def stop(self) -> None:
+        self.should_stop = True
 
     async def capture_window_loop(self) -> None:
         while True:
-            if self.hwnd:
-                new_capture = capture_window(self.hwnd)
-                if detect_difference(
-                    self.last_capture,
-                    new_capture,
-                    self.parent.window_watcher_tolerance,
-                ):
-                    self.parent.on_change()
-                self.last_capture = new_capture
-            await asyncio.sleep(1)
+            try:
+                if self.should_stop:
+                    break
+                window = find_window(self.parent.title_regex)
+                if window:
+                    hwnd, title = window
+                    print(f'Window: {hwnd} "{title}"')
+                    new_capture = await asyncio.to_thread(capture_window, hwnd)
+                    if detect_difference(
+                        self.last_capture,
+                        new_capture,
+                        self.parent.tolerance,
+                    ):
+                        self.parent.on_change()
+                    self.last_capture = new_capture
+                else:
+                    print(f"Looking for window: {self.parent.title_regex}")
+                await asyncio.sleep(self.parent.interval)
+            except Exception as e:
+                traceback.print_exc()
+                await asyncio.sleep(self.parent.interval)
+            except BaseException:
+                self.clean_up()
+                raise  # propagate so that other coroutines exit
+
+    def clean_up(self) -> None:
+        print("Window watcher stopped")
 
 
 def capture_window(hwnd: HWND) -> Image:

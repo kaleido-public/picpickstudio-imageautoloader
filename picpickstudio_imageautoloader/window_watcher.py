@@ -9,11 +9,13 @@ class WindowWatcher:
         self,
         title_regex: re.Pattern,
         on_change: Callable[..., None],
-        window_watcher_tolerance: float,
+        tolerance: float,
+        interval: float,
     ) -> None:
         self.title_regex = title_regex
         self.on_change = on_change
-        self.window_watcher_tolerance = window_watcher_tolerance
+        self.tolerance = tolerance
+        self.interval = interval
         match sys.platform:
             case "win32":
                 from .window_watcher_win32 import WindowWatcherWin32
@@ -24,3 +26,6 @@ class WindowWatcher:
 
     async def start(self) -> None:
         await self.delegate.start()
+
+    def stop(self) -> None:
+        self.delegate.stop()

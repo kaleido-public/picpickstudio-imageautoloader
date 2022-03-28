@@ -3,6 +3,7 @@
 from email.policy import default
 from lib2to3.pytree import Base
 from turtle import position
+from typing import final
 import click
 from pathlib import Path
 import re
@@ -17,72 +18,81 @@ from picpickstudio_imageautoloader.window_watcher import WindowWatcher
 from picpickstudio_imageautoloader.dir_watcher import DirWatcher
 import PySimpleGUI as sg
 import io
-
+import traceback
 
 window_title = "PICPICK PREVIEW"
 
 
 @click.command()
-@click.option("--default-config", is_flag=True, help="Print default config to stdout.")
-@click.option("-c", "--config", type=Path, required=False)
+@click.option(
+    "--default-config",
+    "is_show_default_config",
+    is_flag=True,
+    help="Print default config to stdout.",
+)
+@click.option("-c", "--config", "config_path", type=Path, required=False)
 def main(
-    default_config: bool,
-    config: Path | None,
+    is_show_default_config: bool,
+    config_path: Path | None,
 ):
-    if default_config:
+    if is_show_default_config:
         print_default_config()
         exit()
 
-    config_obj = get_config(config)
+    config = get_config(config_path)
 
     window_watcher = WindowWatcher(
-        title_regex=re.compile(config_obj.window_title_regex, re.IGNORECASE),
+        title_regex=re.compile(config.window_watcher.title_regex, re.IGNORECASE),
         on_change=on_window_change,
-        window_watcher_tolerance=config_obj.window_watcher_tolerance,
+        tolerance=config.window_watcher.tolerance,
+        interval=config.window_watcher.interval,
     )
     dir_watcher = DirWatcher(
-        use_polling=config_obj.use_polling,
         on_new_file=on_new_file,
-        filename_regex=re.compile(config_obj.filename_regex, re.IGNORECASE),
-        path=Path(config_obj.watch_dirpath),
+        filename_regex=re.compile(config.dir_watcher.filename_regex, re.IGNORECASE),
+        path=Path(config.dir_watcher.watch_dirpath),
     )
-    image_previewer = ImagePreviewer()
+    image_previewer = ImagePreviewer(interval=config.image_previewer.interval)
 
     async def main_loop():
-        await asyncio.gather(
-            window_watcher.start(),
-            image_previewer.start(),
-        )
+        try:
+            cancellable = asyncio.gather(
+                window_watcher.start(),
+                image_previewer.start(),
+            )
+            await cancellable
+        except Exception as e:
+            traceback.print_exc()
+        except BaseException:
+            print("Interrupt")
+            cancellable.cancel()
+        finally:
+            dir_watcher.stop()
+            image_previewer.stop()
+            window_watcher.stop()
 
-    try:
-        dir_watcher.start()
-        asyncio.run(main_loop())
-    except KeyboardInterrupt:
-        dir_watcher.stop()
-        image_previewer.stop()
-        exit("Interrupted")
-
-    print("exit normally")
+    dir_watcher.start()
+    asyncio.run(main_loop())
 
 
 def print_default_config():
-    print(AppConfig.default_config().to_yaml(), end="")
+    print(AppConfig.default().to_yaml(), end="")
 
 
 def get_config(config_path: Path | None) -> AppConfig:
     """Returns the config object from the file path, or the default config
     object."""
-    config_obj = AppConfig.default_config()
+    config = AppConfig.default()
     if config_path is not None:
         content = config_path.read_text()
         try:
-            config_obj = AppConfig.from_yaml(content)
+            config = AppConfig.from_yaml(content)
         except marshmallow.exceptions.ValidationError as error:
             exit(
                 "Invalid configuration file.\n\n"
                 + yaml.dump(error.normalized_messages())
             )
-    return config_obj
+    return config
 
 
 def on_new_file(file: Path) -> None:

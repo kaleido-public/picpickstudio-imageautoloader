@@ -4,27 +4,58 @@ import yaml
 
 
 @dataclass
-class AppConfig:
-    window_title_regex: str
-    window_title_regex_case_sensitive: bool
-    use_polling: bool
-    polling_frequency_ms: int
-    filename_regex: str
-    filename_regex_case_sensitive: bool
-    watch_dirpath: str
-    window_watcher_tolerance: float
+class WindowWatcherConfig:
+    interval: float
+    title_regex: str
+    tolerance: float
 
     @staticmethod
-    def default_config() -> "AppConfig":
-        return AppConfig(
-            window_title_regex="Remote Live View window",
-            window_title_regex_case_sensitive=False,
-            use_polling=True,
-            polling_frequency_ms=1000,
-            filename_regex=".*\.jpg",
-            filename_regex_case_sensitive=False,
+    def default() -> "WindowWatcherConfig":
+        return WindowWatcherConfig(
+            interval=1.0,
+            title_regex=".*Remote Live View window.*",
+            tolerance=0.05,
+        )
+
+
+@dataclass
+class DirWatcherConfig:
+    watch_dirpath: str
+    filename_regex: str
+    interval: float
+
+    @staticmethod
+    def default() -> "DirWatcherConfig":
+        return DirWatcherConfig(
+            interval=1.0,
             watch_dirpath="./",
-            window_watcher_tolerance=0.05,
+            filename_regex=".*\.jpg",
+        )
+
+
+@dataclass
+class ImagePreviewerConfig:
+    interval: float
+
+    @staticmethod
+    def default() -> "ImagePreviewerConfig":
+        return ImagePreviewerConfig(
+            interval=1.0,
+        )
+
+
+@dataclass
+class AppConfig:
+    dir_watcher: DirWatcherConfig
+    window_watcher: WindowWatcherConfig
+    image_previewer: ImagePreviewerConfig
+
+    @staticmethod
+    def default() -> "AppConfig":
+        return AppConfig(
+            dir_watcher=DirWatcherConfig.default(),
+            window_watcher=WindowWatcherConfig.default(),
+            image_previewer=ImagePreviewerConfig.default(),
         )
 
     @staticmethod

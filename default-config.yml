@@ -1,8 +1,10 @@
-filename_regex: .*\.png
-filename_regex_case_sensitive: false
-polling_frequency_ms: 1000
-use_polling: true
-watch_dirpath: ./
-window_title_regex: ".*File Explorer.*"
-window_title_regex_case_sensitive: false
-window_watcher_tolerance: 0.05
+dir_watcher:
+  filename_regex: .*\.(jpg|png)
+  interval: 1.0
+  watch_dirpath: ./
+image_previewer:
+  interval: 1.0
+window_watcher:
+  interval: 5.0
+  title_regex: .*File Explorer.*
+  tolerance: 0.05

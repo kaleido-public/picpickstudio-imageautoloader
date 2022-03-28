@@ -8,14 +8,12 @@ import watchdog.events
 class DirWatcher:
     def __init__(
         self,
-        use_polling: bool,
         path: Path,
         on_new_file: Callable[[Path], None],
         filename_regex: re.Pattern,
     ) -> None:
         self.path = path
         self.on_new_file = on_new_file
-        self.use_polling = use_polling
         self.filename_regex = filename_regex
 
     class __FileSystemEventHandler(watchdog.events.FileSystemEventHandler):
