@@ -19,6 +19,10 @@ from picpickstudio_imageautoloader.dir_watcher import DirWatcher
 import PySimpleGUI as sg
 import io
 import traceback
+import objgraph
+import tracemalloc
+
+tracemalloc.start()
 
 window_title = "PICPICK PREVIEW"
 
@@ -35,6 +39,8 @@ def main(
     is_show_default_config: bool,
     config_path: Path | None,
 ):
+    snapshot1 = tracemalloc.take_snapshot()
+
     if is_show_default_config:
         print_default_config()
         exit()
@@ -73,6 +79,14 @@ def main(
 
     dir_watcher.start()
     asyncio.run(main_loop())
+
+    snapshot2 = tracemalloc.take_snapshot()
+
+    top_stats = snapshot2.compare_to(snapshot1, "lineno")
+
+    print("[ Top 10 differences ]")
+    for stat in top_stats[:10]:
+        print(stat)
 
 
 def print_default_config():

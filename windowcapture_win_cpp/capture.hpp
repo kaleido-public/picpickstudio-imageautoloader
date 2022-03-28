@@ -1,3 +1,4 @@
+#pragma once
 #include <vector>
 typedef uint8_t byte;
 struct Size
@@ -8,7 +9,7 @@ struct Size
 
 struct CaptureWindowOutput
 {
-    Size size;
+    ::Size size;
     std::vector<byte> frame;
 };
 

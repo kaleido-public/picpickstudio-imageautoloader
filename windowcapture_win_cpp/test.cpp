@@ -3,6 +3,8 @@
 
 int main()
 {
-    captureWindowWinRT(395052);
-    std::cerr << "exit normally" << std::endl;
+    for (int i = 0; i < 10000; i++) {
+        captureWindowWinRT(853936);
+    }
+    std::cerr << "Exited normally" << std::endl;
 }

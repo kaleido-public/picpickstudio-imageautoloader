@@ -7,7 +7,7 @@ add_subdirectory(../extern/pybind11 ../extern/build)
 
 if (MSVC)
     # warning level 4 and all warnings as errors
-    add_compile_options(/std:c++17 /await)
+    add_compile_options(/std:c++17 /await /Zi /MT /EHsc /Oy- /Ob0)
 endif()
 
 ## common
@@ -20,12 +20,17 @@ include_directories(SYSTEM
     "C:/Program Files (x86)/Windows Kits/10/Include/10.0.20348.0/um"
 )
 
+set(SOURCE
+    capture.cpp
+    capture_winrt.cpp
+    semaphore.cpp
+)
+
 ## testcase.exe
 
 add_executable(testcase
     test.cpp
-    capture.cpp
-    semaphore.cpp
+    ${SOURCE}
 )
 target_link_directories(testcase PRIVATE
     C:/Users/Yu/AppData/Local/Programs/Python/Python310/libs
@@ -38,10 +43,9 @@ target_link_libraries(testcase PRIVATE
 ## windowcapture_win_py
 
 pybind11_add_module(windowcapture_win_py
-main.cpp
-    capture.cpp
-    semaphore.cpp
-    )
+    main.cpp
+    ${SOURCE}
+)
 
 target_precompile_headers(windowcapture_win_py PRIVATE pch.hpp)
 target_link_libraries(windowcapture_win_py PRIVATE windowsapp)
