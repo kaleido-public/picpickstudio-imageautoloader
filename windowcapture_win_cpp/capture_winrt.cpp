@@ -2,7 +2,7 @@
 using winrt::check_hresult;
 
 GraphicsCaptureItem CaptureWinRT::getGraphicsCaptureItem(HWND window) {
-    GraphicsCaptureItem item(nullptr);
+    winrt::com_ptr<GraphicsCaptureItem> item;
     auto activation_factory = winrt::get_activation_factory<GraphicsCaptureItem>();
     auto interop_factory = activation_factory.as<IGraphicsCaptureItemInterop>();
     check_hresult(interop_factory->CreateForWindow(
@@ -10,7 +10,7 @@ GraphicsCaptureItem CaptureWinRT::getGraphicsCaptureItem(HWND window) {
         winrt::guid_of<IGraphicsCaptureItem>(),
         reinterpret_cast<void**>(winrt::put_abi(item)) /*output*/
     ));
-    return item;
+    return *item;
 }
 
 Direct3D11CaptureFramePool CaptureWinRT::getDirect3D11CaptureFramePool(GraphicsCaptureItem& item) {
@@ -34,12 +34,12 @@ Direct3D11CaptureFramePool CaptureWinRT::getDirect3D11CaptureFramePool(GraphicsC
         NULL
     ));
 
-    auto idxgDevice = d3d_device.as<IDXGIDevice>();
-    /* See IInspectable
-       https://docs.microsoft.com/en-us/windows/uwp/cpp-and-winrt-apis/boxing
-       https://docs.microsoft.com/en-us/windows/uwp/cpp-and-winrt-apis/consume-com
-       https://docs.microsoft.com/en-us/windows/win32/com/com-technical-overview
-    */
+    winrt::com_ptr<IDXGIDevice> idxgDevice = d3d_device.as<IDXGIDevice>();
+   /* See IInspectable
+      https://docs.microsoft.com/en-us/windows/uwp/cpp-and-winrt-apis/boxing
+      https://docs.microsoft.com/en-us/windows/uwp/cpp-and-winrt-apis/consume-com
+      https://docs.microsoft.com/en-us/windows/win32/com/com-technical-overview
+   */
     winrt::com_ptr<::IInspectable> inspectable;
     check_hresult(CreateDirect3D11DeviceFromDXGIDevice(idxgDevice.get(), inspectable.put() /* output */));
     const IDirect3DDevice device = inspectable.as<IDirect3DDevice>();
@@ -59,26 +59,27 @@ GraphicsCaptureSession CaptureWinRT::getGraphicsCaptureSession(GraphicsCaptureIt
 }
 
 CaptureWindowOutput CaptureWinRT::getCapture(GraphicsCaptureItem& item, Direct3D11CaptureFramePool& framePool, GraphicsCaptureSession& session) {
-    std::vector<byte> buffer{};
-    ::Size size{ 0,0 };
+    CaptureWindowOutput output;
     unsigned frame_count = 0;
-    framePool.FrameArrived(
-        [&](Direct3D11CaptureFramePool const& pool, auto&) -> IAsyncOperation<uint8_t>
+    auto handle = new auto (
+        [&output, &frame_count](Direct3D11CaptureFramePool const& pool, auto&)
         {
-            if (frame_count >= 1) { co_return 0; }
+            if (frame_count >= 1) { return; }
             Direct3D11CaptureFrame frame = pool.TryGetNextFrame();
-            SoftwareBitmap bitmap = co_await SoftwareBitmap::CreateCopyFromSurfaceAsync(frame.Surface());
-            size.width = bitmap.PixelWidth();
-            size.height = bitmap.PixelHeight();
-            winrt::Windows::Storage::Streams::Buffer bitmapBuffer(sizeof(UINT32) * size.width * size.height);
+            auto surface = frame.Surface();
+            SoftwareBitmap bitmap = SoftwareBitmap::CreateCopyFromSurfaceAsync(surface).get();
+            output.size.width = bitmap.PixelWidth();
+            output.size.height = bitmap.PixelHeight();
+            winrt::Windows::Storage::Streams::Buffer bitmapBuffer(sizeof(UINT32) * output.size.width * output.size.height);
             bitmap.CopyToBuffer(bitmapBuffer);
+            output.frame = std::vector(bitmapBuffer.data(), bitmapBuffer.data() + bitmapBuffer.Length());
             bitmap.Close();
-            buffer.resize(bitmapBuffer.Length());
-            std::copy(bitmapBuffer.data(), bitmapBuffer.data() + bitmapBuffer.Length(), buffer.data());
+            surface.Close();
+            frame.Close();
             frame_count++;
-            co_return 0;
         }
     );
+    auto revoker = framePool.FrameArrived(winrt::auto_revoke, *handle);
     session.StartCapture();
 
     // Message pump
@@ -91,10 +92,8 @@ CaptureWindowOutput CaptureWinRT::getCapture(GraphicsCaptureItem& item, Direct3D
         }
     }
 
-    CaptureWindowOutput output;
-    output.size = size;
-    output.frame = buffer;
-
+    revoker.revoke();
+    delete handle;
     return output;
 
 }

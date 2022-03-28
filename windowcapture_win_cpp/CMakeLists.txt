@@ -7,7 +7,7 @@ add_subdirectory(../extern/pybind11 ../extern/build)
 
 if (MSVC)
     # warning level 4 and all warnings as errors
-    add_compile_options(/std:c++17 /await /Zi /MT /EHsc /Oy- /Ob0)
+    add_compile_options(/std:c++17 /await /Zi /MTd /EHsc /Oy- /Ob0 /Fe)
 endif()
 
 ## common
@@ -39,6 +39,7 @@ target_link_libraries(testcase PRIVATE
     python3
     windowsapp
 )
+target_precompile_headers(testcase PRIVATE pch.hpp)
 
 ## windowcapture_win_py
 
